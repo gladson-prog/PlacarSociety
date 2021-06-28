@@ -92,10 +92,11 @@ boolean n = 0;
 boolean bloq_pisca = 1; //VARIÁVEL QUE BLOQUEIO INCREMENTO DURANTE PISCA PONTOS/GAMES/SETS
 boolean bloq_tecla = 1; //VARIAVEL PARA EVITAR LOOP DAS TECLAS
 boolean f = 0;
-boolean bloq = 0;
+//boolean bloq = 0;
 boolean relogio = 0;
-boolean l = 0;
+//boolean l = 0;
 boolean ajuste_relogio = 0;
+boolean zerou = 0;
 ////////////////////////////////////////////DECLARAÇÃO DE FUNÇÕES
 
 
@@ -338,30 +339,33 @@ void loop() {
         switch (ajuste)
         {
         case 0:
-          if(!seltime){                               
-            if(contpontos1>0){                  
-              contpontos1--;
-              exibe_ponto1();                   //ESCREVE PONTO DO TIME 1 NO DISPLAY
-              exibe_ponto2();                   //ESCREVE PONTO DO TIME 2 NO DISPLAY
-              eeprom_escreve(48, contpontos1);  //SALVA NA EEPROM O VALOR ATUAL
-            }else{
-              bloq_pisca = 0;
-              Timer1.attachInterrupt(pisca_pontos1);
-              Timer1.initialize(400000);
-            }
-          }else{                                
-            if(contpontos2>0){                  
-              contpontos2--;
-              exibe_ponto1();                   //ESCREVE PONTO DO TIME 1 NO DISPLAY
-              exibe_ponto2();                   //ESCREVE PONTO DO TIME 2 NO DISPLAY
-              eeprom_escreve(49, contpontos2);  //SALVA NA EEPROM O VALOR ATUAL
-            }else{
-              bloq_pisca = 0;
-              Timer1.attachInterrupt(pisca_pontos2);
-              Timer1.initialize(400000);
-            }
-          }
-          break;
+          if(zerou){
+            atualizacontpontos();
+            exibe_ponto1();
+            exibe_ponto2();
+            zerou = 0;
+          }else if(!seltime){                               
+                  if(contpontos1>0){                  
+                    contpontos1--;
+                    exibe_ponto1();                   //ESCREVE PONTO DO TIME 1 NO DISPLAY
+                    eeprom_escreve(48, contpontos1);  //SALVA NA EEPROM O VALOR ATUAL
+                  }else{
+                    bloq_pisca = 0;
+                    Timer1.attachInterrupt(pisca_pontos1);
+                    Timer1.initialize(400000);
+                  }
+                }else{                                
+                  if(contpontos2>0){                  
+                    contpontos2--;
+                    exibe_ponto2();                   //ESCREVE PONTO DO TIME 2 NO DISPLAY
+                    eeprom_escreve(49, contpontos2);  //SALVA NA EEPROM O VALOR ATUAL
+                  }else{
+                    bloq_pisca = 0;
+                    Timer1.attachInterrupt(pisca_pontos2);
+                    Timer1.initialize(400000);
+                  }
+                }
+        break;
         
         case 1:
           brilho--;                 
@@ -430,7 +434,7 @@ void loop() {
         delay(50);
         contDelayDeTecla++;
       }
-      if(contDelayDeTecla==30){
+      if(contDelayDeTecla==30){     //TEMPORIZADO
         bloq_tecla=0;
         if (ajuste == 0){
           ajuste = 1;
@@ -444,8 +448,9 @@ void loop() {
             exibe_crono(setmin, setseg);
           }else if (crono == 2)exibe_crono(d, e);
         }
-        }else if (ajuste == 0){
+        }else if (ajuste == 0){    //INSTANTANEO
           zera:                
+          zerou = 1;
           recebeRX = 0;
           bloq_tecla=0;       
           atualizabufpontos();
@@ -601,7 +606,7 @@ void exibe_ponto2(){
 
 void exibe_crono(unsigned long d, unsigned long e){
   lc.setDigit(0,4,(d/10),false);
-  lc.setDigit(0,5,(d%10),false);
+  lc.setDigit(0,5,(d%10),true);
   lc.setDigit(0,6,(e/10),false);
   lc.setDigit(0,7,(e%10),false);
   
