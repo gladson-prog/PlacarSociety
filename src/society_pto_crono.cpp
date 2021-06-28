@@ -440,25 +440,22 @@ void loop() {
           lc.setChar(0,7,' ',false);
         } else {
           ajuste = 0;
-          if (prog){
-            d=setmin;
-            e=setseg;
-          }
-          exibe_crono(d, e);
+          if (crono == 0){
+            exibe_crono(setmin, setseg);
+          }else if (crono == 2)exibe_crono(d, e);
         }
-        digitalWrite(alarm,ajuste);    
-      }else if (ajuste == 0){
-        zera:                
-        recebeRX = 0;
-        bloq_tecla=0;       
-        atualizabufpontos();
-        contpontos1 = 0;
-        contpontos2 = 0;
-        exibe_ponto1();                   //ESCREVE PONTO DO TIME 1 NO DISPLAY
-        exibe_ponto2();                   //ESCREVE PONTO DO TIME 2 NO DISPLAY
-        eeprom_escreve(48, contpontos1);
-        eeprom_escreve(49, contpontos2);
-      }
+        }else if (ajuste == 0){
+          zera:                
+          recebeRX = 0;
+          bloq_tecla=0;       
+          atualizabufpontos();
+          contpontos1 = 0;
+          contpontos2 = 0;
+          exibe_ponto1();                   //ESCREVE PONTO DO TIME 1 NO DISPLAY
+          exibe_ponto2();                   //ESCREVE PONTO DO TIME 2 NO DISPLAY
+          eeprom_escreve(48, contpontos1);
+          eeprom_escreve(49, contpontos2);
+        }
       contDelayDeTecla = 0;
     }
     ////////////////////////////////////////////////////
@@ -494,16 +491,16 @@ void loop() {
           recebeRX = 0;
           bloq_tecla = 0;
           switch (crono){          
-          case 0:          
+          case 0:          //INICIA CRONOMETRO, CRONO = 1
             crono = 1;
             break;
 
-          case 1:
+          case 1:          // PARA CRONOMETRO, CRONO  = 2 
             T.PauseTimer();
             crono = 2;
             break;
 
-          case 2:
+          case 2:          // RETOMA CRONOMETRO, CRONO = 1 PRA PERMITIR PAUSAR
             T.ResumeTimer();
             crono = 1;
             break;
