@@ -89,12 +89,12 @@ boolean seltime = 0; //VARIAVEL DE SELEÇÃO DE TIME
 boolean a = 0; //VARIÁVEL AUXILIA NAS FUNÇÕES 'PISCA'
 boolean m = 0; //VARIAVEL DE CONTROLE DE RETENÇÃO DO TRANSMISSOR
 boolean n = 0;
-boolean bloq_pisca = 1; //VARIÁVEL QUE BLOQUEIO INCREMENTO DURANTE PISCA PONTOS/GAMES/SETS
+boolean bloq_pisca = 1; //VARIÁVEL QUE BLOQUEIA INCREMENTO DURANTE PISCA PONTOS/GAMES/SETS
 boolean bloq_tecla = 1; //VARIAVEL PARA EVITAR LOOP DAS TECLAS
 boolean f = 0;
 //boolean bloq = 0;
-boolean relogio = 0;
-//boolean l = 0;
+boolean relogio = 0; // MOSTRA RELOGIO SE 1 
+boolean buffer_relogio = 0; // GUARDA CONDIÇÃO DA VARIAVEL RELOGIO ANTES DE AJUSTAR O BRILHO
 boolean ajuste_relogio = 0;
 boolean zerou = 0;
 ////////////////////////////////////////////DECLARAÇÃO DE FUNÇÕES
@@ -440,6 +440,8 @@ void loop() {
       if(contDelayDeTecla==30){     //TEMPORIZADO
         bloq_tecla=0;
         if (ajuste == 0){
+          buffer_relogio = relogio;
+          relogio = 0;
           ajuste = 1;
           lc.setChar(0,4,'b',false);
           lc.setChar(0,5,' ',false);
@@ -448,6 +450,7 @@ void loop() {
         } else {
           ajuste = 0;
           if (crono == 0){
+            relogio = buffer_relogio;
             exibe_crono(setmin, setseg);
           }else if (crono == 2)exibe_crono(d, e);
         }
