@@ -42,8 +42,8 @@ RCSwitch mySwitch = RCSwitch();
 #define botCrono 5 //pino 11
 #define botSetCrono 6 //pino 12
 #define alarm 4 //pino 6
-#define pinTerra1 0 //pino 2
-#define pinTerra2 1 //pino 3
+#define time1 0 //pino 2
+#define time2 1 //pino 3
 
 ////////////////////////////////////////////DECLARAÇÃO DE VARIÁVEIS
 
@@ -85,7 +85,7 @@ long recebeRX;
 long controle1[6];
 long controle2[6];
 boolean prog = 0; //VARIÁVEL QUE DEFINE MODO DO CRONOMETRO
-boolean seltime = 0; //VARIAVEL DE SELEÇÃO DE JOGADOR
+boolean seltime = 0; //VARIAVEL DE SELEÇÃO DE TIME
 boolean a = 0; //VARIÁVEL AUXILIA NAS FUNÇÕES 'PISCA'
 boolean m = 0; //VARIAVEL DE CONTROLE DE RETENÇÃO DO TRANSMISSOR
 boolean n = 0;
@@ -112,8 +112,6 @@ int  eeprom_le(int endereco);
 long eeprom_leLong(int endereco);
 void atualizacontpontos();
 void atualizabufpontos();
-void atualizacrono();
-void atualizabufcrono();
 void pisca_pontos();
 void pisca_pontos1();
 void pisca_pontos2();
@@ -146,11 +144,9 @@ void setup() {
   pinMode(botCrono, INPUT_PULLUP);
   pinMode(botSetCrono, INPUT_PULLUP);
   pinMode(alarm, OUTPUT);
-  pinMode(pinTerra1, OUTPUT);
-  pinMode(pinTerra2, OUTPUT);
-  digitalWrite(pinTerra1, 0);
-  digitalWrite(pinTerra2, 0);
-
+  pinMode(time1, OUTPUT);
+  pinMode(time2, OUTPUT);
+  
   // Inicializa o 7219
   lc.shutdown(0,false);
   //lc.shutdown(1,false);
@@ -209,6 +205,13 @@ void setup() {
   contpontos1 = eeprom_le(48);
   contpontos2 = eeprom_le(49);  
   seltime = eeprom_le(50);
+  if(!seltime){
+    digitalWrite(time1, HIGH);
+    digitalWrite(time2, LOW);
+  }else{
+    digitalWrite(time1, LOW);
+    digitalWrite(time2, HIGH);
+  }
   //min = eeprom_le(51);
   //seg = eeprom_le(52);
   exibe_ponto1(); 
@@ -401,27 +404,27 @@ void loop() {
     //////////////////////////////////////////////////// 
     if(!digitalRead(botSelConfig)){
       delay(20);    
-      while(!digitalRead(botSelConfig)&&contDelayDeTecla<150){
+      while(!digitalRead(botSelConfig)&&contDelayDeTecla<100){
         delay(50);
         contDelayDeTecla++;
       }
-      if(contDelayDeTecla==150){
+      if(contDelayDeTecla==100){
         bloq_tecla=0;
         if(q==0){
           grava_tx1();
         }else if(q==6)grava_tx2();      
-      
       }else{        
         seleciona:
         recebeRX = 0;
         seltime =!seltime;
         if(!seltime){
-          //DESENVOLVER FUNÇÃO DE ACIONAMENTO DO LED DE SELEÇÃO DO TIME 1
-          eeprom_escreve(50, seltime);         
+          digitalWrite(time1, HIGH);
+          digitalWrite(time2, LOW);
         }else{
-          //DESENVOLVER FUNÇÃO DE ACIONAMENTO DO LED DE SELEÇÃO DO TIME 2
-          eeprom_escreve(50, seltime);
+          digitalWrite(time1, LOW);
+          digitalWrite(time2, HIGH);
         }
+        eeprom_escreve(50, seltime);
       }
       contDelayDeTecla = 0;
     }
@@ -802,19 +805,7 @@ void atualizabufpontos(){
   bufpontos1 = contpontos1;
   bufpontos2 = contpontos2;
 }
-/*
-/////////////////////////////////////////////FUNÇÃO ATUALIZA CRONOMETRO
-void atualizacrono(){
-  min = bufmin;
-  seg = bufseg;
-}
 
-/////////////////////////////////////////////FUNÇÃO ATUALIZA BUFFER CRONOMETRO
-void atualizabufcrono(){
-  bufmin = min;
-  bufseg = seg;
-}
-*/
 /////////////////////////////////////////FUNÇÃO DE GRAVAÇÃO DO CONTROLE REMOTO 1
 void grava_tx1(){
   n=0;  
