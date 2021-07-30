@@ -26,7 +26,7 @@
 
 // Definicoes dos pinos e quantidade de modulos no circuito
 //                      din(1)/clk(13)/load(12)/n_de_ci's
-LedControl lc= LedControl(12,    8,      10,       1);
+LedControl lc = LedControl(12,    8,      10,       1);
 //Instancia do cronometro
 CountUpDownTimer T(DOWN,LOW);
 //Instancia do relogio
@@ -50,16 +50,17 @@ RCSwitch mySwitch = RCSwitch();
 int contDelayDeTecla = 0; 
 int contpontos1 = 0; // GUARDA O VALOR ATUAL DE PONTOS
 int contpontos2 = 0; // GUARDA O VALOR ATUAL DE PONTOS
-int bufpontos1 = 0;  // GUARDA O VALOR ANTERIOR E INFORMAR QUANDO FOR DECREMENTADO
-int bufpontos2 = 0;  // GUARDA O VALOR ANTERIOR E INFORMAR QUANDO FOR DECREMENTADO
-int cont = 0;
-int brilho = 0; // GUARDA O VALOR DO BRILHO DO DISPLAY
+int bufpontos1 = 0;  // GUARDA O VAL ANTERIOR E INFORMAR QUANDO FOR DECREMENTADO
+int bufpontos2 = 0;  // GUARDA O VAL ANTERIOR E INFORMAR QUANDO FOR DECREMENTADO
+int cont = 0;     // CONTADOR DA INTERRUPÇÃO 2
+int brilho = 7; // GUARDA O VALOR DO BRILHO DO DISPLAY
 int crono = 0;  // ALTERNA O COMANDO DE START/STOP DO CRONOMETRO
 int y = 0;      // VARIAVEL DE IMPRESSÃO NO DISPLAY
-int ajuste = 0;    // PERMITE BOTÕES DE INCREMENTO/DECREMENTO ALTERNAR ENTRE PONTOS (0), BRILHO(1) OU RELOGIO(2)
+int ajuste = 0; // PERMITE BOTÕES DE INC/DEC AJUSTAR PTOS(0)/BRL(1)/RELOGIO(2)
 int o = 0;
-int loop_pisca = 0; //VARIÁVEL QUE PERMITE LOOP PARA PISCAR PONTOS/CRONOMETRO
-int loop_pisca2 = 0; //VARIÁVEL QUE PERMITE LOOP PARA PISCAR RELOGIO
+int loop_pisca = 0; //PERMITE LOOP PARA PISCAR PONTOS/CRONOMETRO
+int loop_pisca2 = 0; //PERMITE LOOP PARA PISCAR RELOGIO
+int loop_pisca3 = 0; //PERMITE LOOP PARA PISCAR PROG DE CONTROLE REMOTO
 int setsPisca = 0;
 int segundo;
 int minuto;
@@ -70,8 +71,8 @@ int ano;
 int buffer_ajuste = 0;  //GUARDA A FUNÇÃO DAS TECLAS INC/DEC
 int q = 0;  //CONTADOR DE LOOP P/ GRAVAÇÃO DE TX
 byte segCont = 0;
-unsigned long setmin = 0;
-unsigned long setseg = 10;
+unsigned long setmin = 20;
+unsigned long setseg = 0;
 unsigned long min = 0;
 unsigned long seg = 0;
 unsigned long bufmin = 0;
@@ -89,13 +90,13 @@ boolean seltime = 0; //VARIAVEL DE SELEÇÃO DE TIME
 boolean a = 0; //VARIÁVEL AUXILIA NAS FUNÇÕES 'PISCA'
 boolean m = 0; //VARIAVEL DE CONTROLE DE RETENÇÃO DO TRANSMISSOR
 boolean n = 0;
-boolean bloq_pisca = 1; //VARIÁVEL QUE BLOQUEIA INCREMENTO DURANTE PISCA PONTOS/GAMES/SETS
+boolean bloq_pisca = 1; //BLOQUEIA INCREMENTO DURANTE PISCA PONTOS/GAMES/SETS
 boolean bloq_tecla = 1; //VARIAVEL PARA EVITAR LOOP DAS TECLAS
 boolean f = 0;
-//boolean bloq = 0;
-boolean relogio = 0; // MOSTRA RELOGIO SE 1 
-boolean buffer_relogio = 0; // GUARDA CONDIÇÃO DA VARIAVEL RELOGIO ANTES DE AJUSTAR O BRILHO
+boolean relogio = 1; // MOSTRA RELOGIO SE 1 
+boolean buffer_relogio = 0; // GUARDA CONDIÇÃO DA VAR RELOGIO
 boolean ajuste_relogio = 0;
+boolean ajuste_controle = 0;
 boolean zerou = 0;
 ////////////////////////////////////////////DECLARAÇÃO DE FUNÇÕES
 
@@ -163,8 +164,8 @@ void setup() {
   //lc.setScanLimit(1,4);
 
   //Definição do cronometro
-  T.SetTimer(0,0, setseg);  //config p/ regressivo
-  //T.SetStopTime(0, 0, setseg); //config p/ progressivo
+  T.SetTimer(0,setmin, setseg);  //config p/ regressivo
+  //T.SetStopTime(0, setmin, setseg); //config p/ progressivo
   T.StartTimer();
 
   // RECEPÇÃO DO RX PELA INTERRUPÇÃO 0(PINO 2)
@@ -191,15 +192,15 @@ void setup() {
   TIMSK2 = 0B00000000;  //INTERRUPÇÃO DESABILITADA POR ESTOURO DE PILHA
   
   /////Limpeza da EEPROM Executada apenas para limpar a memoria na primeira gravação do CI
-  /*for (int nL = 0; nL < espacoEEPROM; nL++) { 
-    EEPROM.write(nL, 0);
-  } */ //Comentar até aqui.
+  //for (int nL = 0; nL < espacoEEPROM; nL++) { 
+  //  EEPROM.write(nL, 0);
+  //}  //Comentar até aqui.
   
   for(int i=0; i<=5; i++){
     controle1[i] = eeprom_leLong(i*4);
   }
   for(int i=6; i<=11; i++){
-    controle2[i] = eeprom_leLong(i*4);
+    controle2[i-6] = eeprom_leLong(i*4);
   }
 
   contpontos1 = eeprom_le(48);
@@ -212,8 +213,6 @@ void setup() {
     digitalWrite(time1, LOW);
     digitalWrite(time2, HIGH);
   }
-  //min = eeprom_le(51);
-  //seg = eeprom_le(52);
   exibe_ponto1(); 
   exibe_ponto2();
   exibe_crono(setmin, setseg);
@@ -231,13 +230,13 @@ void loop() {
       d=T.ShowMinutes();
       e=T.ShowSeconds();  
       if (prog){
-        d=setmin-d;
-        e=setseg-e;
+        if(d>0)d=(setmin-1)-d;
+        if(e>0)e=59-e;
       }
       exibe_crono(d, e);      
       if((T.ShowMinutes())==b && (T.ShowSeconds())==c) {
         T.StopTimer();
-        T.SetTimer(0, 0, setseg); //REGRESSIVO
+        T.SetTimer(0, setmin, setseg); //REGRESSIVO
         T.StartTimer();
         crono=0;
         bloq_pisca=0;
@@ -247,23 +246,30 @@ void loop() {
     }
   }
 
+  if((!m)&&(mySwitch.available())){
+    recebeRX = (mySwitch.getReceivedValue());
+    mySwitch.resetAvailable();
+    mySwitch.disableReceive();
+    m=1;      
+    
+    if(recebeRX == controle1[0] || recebeRX == controle2[0])goto incrementa;
+    
+    if(recebeRX == controle1[1] || recebeRX == controle2[1])goto decrementa;
+    
+    if(recebeRX == controle1[2] || recebeRX == controle2[2])goto seleciona;
+    
+    if(recebeRX == controle1[3] || recebeRX == controle2[3])goto zera;
+    
+    if(recebeRX == controle1[4] || recebeRX == controle2[4])goto cronometro;
+    
+    if(recebeRX == controle1[5] || recebeRX == controle2[5])goto setCrono;
+    
+  } 
+  if(m)TIMSK2 = 0B00000001;
+    
   if(bloq_tecla && bloq_pisca){      
     
-    if((!m)&&(mySwitch.available())){
-      recebeRX = (mySwitch.getReceivedValue());
-      mySwitch.resetAvailable();
-      mySwitch.disableReceive();
-      m=1;      
-      if(recebeRX == controle1[0] || recebeRX == controle2[0])goto incrementa;
-      if(recebeRX == controle1[1] || recebeRX == controle2[1])goto decrementa;
-      if(recebeRX == controle1[2] || recebeRX == controle2[2])goto seleciona;
-      if(recebeRX == controle1[3] || recebeRX == controle2[3])goto zera;
-      if(recebeRX == controle1[4] || recebeRX == controle2[4])goto cronometro;
-      if(recebeRX == controle1[5] || recebeRX == controle2[5])goto setCrono;
-    } 
-    if(m){
-      TIMSK2 = 0B00000001;
-    }
+    
     ////////////////////////////////////////////////////
     //INCREMENTA PONTO INCREMENTA PONTO INCREMENTA PONTO   
     ////////////////////////////////////////////////////                    
@@ -275,22 +281,22 @@ void loop() {
         bloq_tecla=0;
         switch (ajuste){
         case 0:
-          if(!seltime){                             //SE SELEÇÃO DE JOGADOR FOR TIME 1
-            if(contpontos1<5){                      //SE TIME 1 TIVER MENOS DE xx PONTOS        
-              atualizabufpontos();                  //ARMAZENA NO BUFFER OS PONTOS DOS JOGADORES
-              contpontos1++;                        //INCREMENTA O PONTO DO TIME 1 
-              exibe_ponto1();                       //ESCREVE PONTO DO TIME 1 NO DISPLAY
+          if(!seltime){             //SE SELEÇÃO DE JOGADOR FOR TIME 1
+            if(contpontos1<99){     //SE TIME 1 TIVER MENOS DE 99 PONTOS        
+              atualizabufpontos();  //ARMAZENA NO BUFFER OS PONTOS DOS JOGADORES
+              contpontos1++;        //INCREMENTA O PONTO DO TIME 1 
+              exibe_ponto1();       //ESCREVE PONTO DO TIME 1 NO DISPLAY
               eeprom_escreve(48, contpontos1);
             }else{
               bloq_pisca = 0;
               Timer1.attachInterrupt(pisca_pontos1);
               Timer1.initialize(400000);
             }
-          }else{                                    //SE SELEÇÃO DE JOGADOR FOR TIME 2
-            if(contpontos2<5){                     //SE TIME 2 TIVER MENOS DE xx PONTOS        
-              atualizabufpontos();                  //ARMAZENA NO BUFFER OS PONTOS DOS JOGADORES
-              contpontos2++;                        //INCREMENTA O PONTO DO TIME 2 
-              exibe_ponto2();                       //ESCREVE PONTO DO TIME 2 NO DISPLAY
+          }else{                    //SE SELEÇÃO DE JOGADOR FOR TIME 2
+            if(contpontos2<99){     //SE TIME 2 TIVER MENOS DE 99 PONTOS        
+              atualizabufpontos();  //ARMAZENA NO BUFFER OS PONTOS DOS JOGADORES
+              contpontos2++;        //INCREMENTA O PONTO DO TIME 2 
+              exibe_ponto2();       //ESCREVE PONTO DO TIME 2 NO DISPLAY
               eeprom_escreve(49, contpontos2);
             }else{
               bloq_pisca = 0;
@@ -350,7 +356,7 @@ void loop() {
           }else if(!seltime){                               
                   if(contpontos1>0){                  
                     contpontos1--;
-                    exibe_ponto1();                   //ESCREVE PONTO DO TIME 1 NO DISPLAY
+                    exibe_ponto1();       //ESCREVE PONTO DO TIME 1 NO DISPLAY
                     eeprom_escreve(48, contpontos1);  //SALVA NA EEPROM O VALOR ATUAL
                   }else{
                     bloq_pisca = 0;
@@ -404,16 +410,18 @@ void loop() {
     //////////////////////////////////////////////////// 
     if(!digitalRead(botSelConfig)){
       delay(20);    
-      while(!digitalRead(botSelConfig)&&contDelayDeTecla<100){
+      while(!digitalRead(botSelConfig)&&contDelayDeTecla<150){
         delay(50);
         contDelayDeTecla++;
       }
-      if(contDelayDeTecla==100){
-        bloq_tecla=0;
+      bloq_tecla = 0;
+      if(contDelayDeTecla==150){      //TEMPORIZADO
         if(q==0){
           grava_tx1();
-        }else if(q==6)grava_tx2();      
-      }else{        
+        }else if(q==6){
+          grava_tx2();
+        }      
+      }else{                          //INSTANTANEO 
         seleciona:
         recebeRX = 0;
         seltime =!seltime;
@@ -429,7 +437,7 @@ void loop() {
       contDelayDeTecla = 0;
     }
     ////////////////////////////////////////////////////
-    //ZERA PONTO ZERA PONTO ZERA PONTO ZERA PONTO 
+    //ZERA PONTO ZERA PONTO OU ENTRE EM MODO DE AJUSTE BRILHO
     //////////////////////////////////////////////////// 
     if(!digitalRead(botZera)){
       delay(20);    
@@ -437,28 +445,27 @@ void loop() {
         delay(50);
         contDelayDeTecla++;
       }
-      if(contDelayDeTecla==30){     //TEMPORIZADO
-        bloq_tecla=0;
-        if (ajuste == 0){
-          buffer_relogio = relogio;
-          relogio = 0;
-          ajuste = 1;
+      bloq_tecla=0;
+      if(contDelayDeTecla==30){   //TEMPORIZADO
+        if (ajuste == 0){ //SE ESTIVER EM PONTO
+          buffer_relogio = relogio; //GUARDA CONDIÇÃO DO RELOGIO
+          relogio = 0;    //DESLIGA RELOGIO
+          ajuste = 1;     //MUDA P/ BRILHO
           lc.setChar(0,4,'b',false);
           lc.setChar(0,5,' ',false);
           lc.setChar(0,6,' ',false);
           lc.setChar(0,7,' ',false);
-        } else {
-          ajuste = 0;
-          if (crono == 0){
-            relogio = buffer_relogio;
+        }else{
+          ajuste = 0;  //AJUSTE EM PONTO
+          relogio = buffer_relogio; //VOLTE P/ CONDIÇÃO ANT (RELOGIO OU CRONO)
+          if( crono == 0){  //SE O CRONO ESTIVER ZERADO 
             exibe_crono(setmin, setseg);
-          }else if (crono == 2)exibe_crono(d, e);
+          }else if (crono == 2)exibe_crono(d, e); //SE O CRONO ESTIVER PAUSADO
         }
-        }else if (ajuste == 0){    //INSTANTANEO
+        }else if (ajuste == 0){  //INSTANTANEO SO AVANÇA SE O AJUSTE = PONTO
           zera:                
           zerou = 1;
           recebeRX = 0;
-          bloq_tecla=0;       
           atualizabufpontos();
           contpontos1 = 0;
           contpontos2 = 0;
@@ -478,18 +485,17 @@ void loop() {
         delay(50);
         contDelayDeTecla ++;
       }      
+      bloq_tecla = 0;  
         if(contDelayDeTecla == 30){    //TEMPORIZADO
-          bloq_tecla = 0;
           if(!ajuste_relogio){
             if(crono == 2){
             T.StopTimer();
-            T.SetTimer(0, 0, setseg); 
+            T.SetTimer(0, setmin, setseg); 
             T.StartTimer();
-            exibe_crono(0, setseg);
+            exibe_crono(setmin, setseg);
             crono = 0;          
             }else if(crono == 0){
               relogio = !relogio;
-              digitalWrite(alarm,relogio); 
               if(!relogio){
                 d = setmin;
                 e = setseg;
@@ -500,7 +506,6 @@ void loop() {
         }else if(!relogio && !ajuste_relogio){  //INSTANTANEO      
           cronometro:
           recebeRX = 0;
-          bloq_tecla = 0;
           switch (crono){          
           case 0:          //INICIA CRONOMETRO, CRONO = 1
             crono = 1;
@@ -534,8 +539,8 @@ void loop() {
         delay(50);
         contDelayDeTecla++;
       }
+      bloq_tecla = 0;        
       if(contDelayDeTecla==30){ //TEMPORIZADO
-        bloq_tecla = 0;        
         if(relogio==1){
           rtc.stop();
           relogio = 0;
@@ -562,15 +567,14 @@ void loop() {
           ajuste_relogio = 0;
         }
       }else{                 //INSTANTÂNEO
-        bloq_tecla = 0;
         if(!relogio){
           if(!ajuste_relogio){
             setCrono:
             recebeRX = 0;
-            setseg = setseg +5;
-            if(setseg == 30)setseg = 5;
-            exibe_crono(0, setseg);
-            T.SetTimer(0, 0, setseg); 
+            setmin = setmin +5;
+            if(setmin > 25)setmin = 5;
+            exibe_crono(setmin, setseg);
+            T.SetTimer(0, setmin, setseg); 
           }else loop_pisca2 = 1;
         }              
       }  
@@ -657,6 +661,23 @@ void pisca_pontos1(){
   } 
 }     
 
+/////////////////////////////////////////////FUNCAO PISCA CONTROLE 1
+void pisca_controle1(){
+  if(!a){
+    lc.setChar(0,0,' ',false);  
+    lc.setChar(0,1,' ',false);
+  }else{
+    exibe_ponto1();                   
+  }
+  a=!a;  
+  if(loop_pisca3==1){
+    Timer1.stop();
+    a=0;
+    loop_pisca3=0;
+    bloq_pisca=1;    
+  } 
+}
+
 /////////////////////////////////////////////FUNCAO PISCA PONTOS 2
 void pisca_pontos2(){
   if(!a){
@@ -708,16 +729,14 @@ void pisca_crono(){
 void pisca_hora(){
   ajuste = 2; //CONFIG A VARIAVEL P/ INC/DEC DE HORA
   if(!a){
-    digitalWrite(alarm, LOW);
     lc.setChar(0,4,' ',false);
-    lc.setChar(0,5,' ',false);
+    lc.setChar(0,5,' ',true);
   }else{    
     exibe_crono(hora, minuto);
   }
   a =! a;
   if(loop_pisca2 == 1){
     loop_pisca2 = 0;
-    digitalWrite(alarm, HIGH);
     exibe_crono(hora,minuto);
     Timer1.stop();      
     a = 0;
@@ -732,7 +751,6 @@ void pisca_hora(){
 void pisca_minuto(){
   ajuste = 3; //CONFIG A VARIAVEL P/ INC/DEC DE MINUTO
   if(!a){
-    digitalWrite(alarm, LOW);
     lc.setChar(0,6,' ',false);
     lc.setChar(0,7,' ',false);
   }else{    
@@ -741,7 +759,6 @@ void pisca_minuto(){
   a =! a;
   if(loop_pisca2 == 1){
     loop_pisca2 = 0;
-    digitalWrite(alarm, HIGH);
     exibe_crono(hora,minuto);
     Timer1.stop();      
     a = 0;
@@ -811,10 +828,12 @@ void atualizabufpontos(){
 
 /////////////////////////////////////////FUNÇÃO DE GRAVAÇÃO DO CONTROLE REMOTO 1
 void grava_tx1(){
-  n=0;  
+  n=0; 
+  
   for (int nL = 0; nL<=23; nL++) { 
       EEPROM.write(nL, 0);
-  }  
+  } 
+   
   lc.clearDisplay(0);
   contpontos1 = 0;
   exibe_ponto1();
@@ -831,8 +850,8 @@ void grava_tx1(){
         mySwitch.disableReceive();
         TIMSK2 = 0B00000001;        
       }          
-    } 
-    if(q == 6)n=1; 
+    }
+    if(q == 6)n=1;
     contpontos1 = 0;
     contpontos2 = 0;
     exibe_ponto1();         //ESCREVE PONTO DO TIME 1 NO DISPLAY
@@ -847,11 +866,13 @@ void grava_tx1(){
  
 /////////////////////////////////////////FUNÇÃO DE GRAVAÇÃO DO CONTROLE REMOTO 2
 void grava_tx2(){
-  digitalWrite(alarm, HIGH);
+  
   n=0;  
+  
   for (int nL = 24; nL<=47; nL++) { 
       EEPROM.write(nL, 0);
-  }  
+  } 
+   
   lc.clearDisplay(0);
   contpontos2 = 0;
   exibe_ponto2();
@@ -859,9 +880,9 @@ void grava_tx2(){
   while(!n){
     for(q=6;q<=11;q++){
       while(mySwitch.available() == 0);      
-      if (mySwitch.available()) {
-        controle2[q] = mySwitch.getReceivedValue(); 
-        eeprom_escreveLong((q*4), controle2[q]); 
+      if (mySwitch.available()){
+        controle2[q-6] = mySwitch.getReceivedValue(); 
+        eeprom_escreveLong((q*4), controle2[q-6]); 
         contpontos2 = (q-5);
         exibe_ponto2();     
         mySwitch.resetAvailable();
@@ -872,7 +893,7 @@ void grava_tx2(){
     if(q == 12){
       n=1;
       q=0;
-    } 
+    }
     contpontos1 = 0;
     contpontos2 = 0;
     exibe_ponto1();         //ESCREVE PONTO DO TIME 1 NO DISPLAY
@@ -919,6 +940,3 @@ long eeprom_leLong(int endereco) {
    return ((four << 0) & 0xFF) + ((three << 8) & 0xFFFF) + 
    ((two << 16) & 0xFFFFFF) + ((one << 24) & 0xFFFFFFFF);
 }
-
-
-
